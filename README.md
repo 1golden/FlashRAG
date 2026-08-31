@@ -4,6 +4,7 @@
 <a href="https://arxiv.org/abs/2405.13576" target="_blank"><img src=https://img.shields.io/badge/arXiv-b5212f.svg?logo=arxiv></a>
 <a href="https://huggingface.co/datasets/RUC-NLPIR/FlashRAG_datasets/" target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace%20Datasets-27b3b4.svg></a>
 <a href="https://www.modelscope.cn/datasets/hhjinjiajie/FlashRAG_Dataset" target="_blank"><img src=https://custom-icon-badges.demolab.com/badge/ModelScope%20Datasets-624aff?style=flat&logo=modelscope&logoColor=white></a>
+<a href="https://deepwiki.com/RUC-NLPIR/FlashRAG"><img src="https://devin.ai/assets/deepwiki-badge.png" alt="DeepWiki Document" height="20"/></a>
 <a href="https://github.com/RUC-NLPIR/FlashRAG/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/LICENSE-MIT-green"></a>
 <a><img alt="Static Badge" src="https://img.shields.io/badge/made_with-Python-blue"></a>
 </div>
@@ -24,7 +25,7 @@
 </h4>
 
 
-FlashRAG is a Python toolkit for the reproduction and development of Retrieval Augmented Generation (RAG) research. Our toolkit includes 36 pre-processed benchmark RAG datasets and 16 state-of-the-art RAG algorithms.
+FlashRAG is a Python toolkit for the reproduction and development of Retrieval Augmented Generation (RAG) research. Our toolkit includes 36 pre-processed benchmark RAG datasets and **23 state-of-the-art RAG algorithms**, including **7 reasoning-based methods** that combine reasoning ability with retrieval.
 
 <p align="center">
 <img src="asset/framework.jpg">
@@ -58,7 +59,9 @@ https://github.com/user-attachments/assets/8ca00873-5df2-48a7-b853-89e7b18bc6e9
 
 - **Comprehensive Benchmark Datasets**: A collection of 36 pre-processed RAG benchmark datasets to test and validate RAG models' performances.
 
-- **Pre-implemented Advanced RAG Algorithms**: Features 16 advancing RAG algorithms with reported results, based on our framework. Easily reproducing results under different settings.
+- **Pre-implemented Advanced RAG Algorithms**: Features **23 advancing RAG algorithms** with reported results, based on our framework. Easily reproducing results under different settings.
+
+- **🚀 Reasoning-based Methods**: **NEW!** We now support **7 reasoning-based methods** that combine reasoning ability with retrieval, achieving superior performance on complex multi-hop tasks.
 
 - **Efficient Preprocessing Stage**: Simplifies the RAG workflow preparation by providing various scripts like corpus processing for retrieval, retrieval index building, and pre-retrieval of documents.
 
@@ -73,21 +76,30 @@ FlashRAG is still under development and there are many issues and room for impro
 - [x] Support OpenAI models
 - [x] Provdide instructions for each component
 - [x] Integrate sentence Transformers
+- [x] Support multimodal RAG
+- [x] Support reasoning-based methods
 - [ ] Inlcude more RAG approaches
-- [ ] Add more evaluation metrics (e.g., Unieval, name-entity F1) and benchmarks (e.g., RGB benchmark)
 - [ ] Enhance code adaptability and readability
+- [ ] Add support for api-based retriever (vllm server)
 
 ## :page_with_curl: Changelog
+[25/11/06] 🎯 NEW Retriever! We have integrated a Web Search Engine-based Retriever, which seamlessly integrates with existing methods and can be enabled quickly with just a Serper API key! This enhancement significantly expands retrieval coverage and real-time capability, supporting dynamic information access and external knowledge augmentation. Experience a more flexible and powerful retrieval workflow now! 
+
+[25/08/06] 🎯 **NEW!** We have added support for **Reasoning Pipeline**, which is a new paradigm that combines reasoning ability and retrieval, representing work that includes [R1-Searcher](https://github.com/SsmallSong/R1-Searcher), [Search-R1](https://github.com/PeterGriffinJin/Search-R1),.... We evaluate the performance of the pipeline on various RAG benchmarks, it can achieve F1 scores close to 60 on multi hop inference datasets such as HotpotQA. See it in [**result table**](#robot-supporting-methods).
+
+[25/03/21] 🚀 **Major Update!** We have expanded our toolkit to support **23 state-of-the-art RAG algorithms**, including **7 reasoning-based methods** that significantly improve performance on complex reasoning tasks. This represents a major milestone in our toolkit's evolution!
+
+[25/02/24] 🔥🔥🔥 We have added support for **multimodal RAG**, including [**MLLMs like Llava, Qwen, InternVL**](https://ruc-nlpir.github.io/FlashRAG/#/zh-cn/component/generator?id=%e5%a4%9a%e6%a8%a1%e6%80%81%e7%94%9f%e6%88%90%e5%99%a8), and various [**multimodal retrievers with Clip architecture**](https://ruc-nlpir.github.io/FlashRAG/#/zh-cn/component/retriever?id=%e5%a4%9a%e6%a8%a1%e6%80%81%e6%a3%80%e7%b4%a2%e5%99%a8). More information can be found in our new version of arxiv article and our documentation. Try it!
 
 [25/01/21] Our technical paper [FlashRAG: A Python Toolkit for Efficient RAG Research](https://arxiv.org/abs/2405.13576) is honored to have been accepted to the Resource Track of the 2025 **ACM Web Conference (WWW 2025)**. Please Check it out!
 
 [25/01/12] Introduce <strong>FlashRAG-UI</strong>, an easy to use interface. You can easily and quickly configure and experience the supported RAG methods and evaluate them on the benchmarks.
 
-[25/01/11] We have added support for a new method [<u>RQRAG</u>](https://arxiv.org/abs/2404.00610) method, see it in [**reproduce_experiment**](docs/reproduce_experiment.md).
+[25/01/11] We have added support for a new method [<u>RQRAG</u>](https://arxiv.org/abs/2404.00610) method, see it in [**reproduce_experiment**](docs/original_docs/reproduce_experiment.md).
 
-[25/01/07] We have currently support the aggregation of multiple retrievers, see it in [**multi retriever usage**](https://github.com/RUC-NLPIR/FlashRAG/blob/main/docs/multi_retriever_usage.md).
+[25/01/07] We have currently support the aggregation of multiple retrievers, see it in [**multi retriever usage**](https://github.com/RUC-NLPIR/FlashRAG/blob/main/docs/original_docs/multi_retriever_usage.md).
 
-[25/01/07] We have integrated a very flexible and lightweight corpus chunking library [**Chunkie**](https://github.com/chonkie-ai/chonkie?tab=readme-ov-file#usage), which supports various custom chunking methods (tokens, sentences, semantic, etc.). Use it in [<u>chunking doc corpus</u>](docs/chunk-doc-corpus.md).
+[25/01/07] We have integrated a very flexible and lightweight corpus chunking library [**Chunkie**](https://github.com/chonkie-ai/chonkie?tab=readme-ov-file#usage), which supports various custom chunking methods (tokens, sentences, semantic, etc.). Use it in [<u>chunking doc corpus</u>](docs/original_docs/chunk-doc-corpus.md).
 
 [24/10/21] We have released a version based on the Paddle framework that supports Chinese hardware platforms. Please refer to [FlashRAG Paddle](https://github.com/RUC-NLPIR/FlashRAG-Paddle) for details.
 
@@ -106,7 +118,7 @@ FlashRAG is still under development and there are many issues and room for impro
 
 [24/07/17] Due to some unknown issues with HuggingFace, our original dataset link has been invalid. We have updated it. Please check the [new link](https://huggingface.co/datasets/RUC-NLPIR/FlashRAG_datasets/) if you encounter any problems.
 
-[24/07/06] We add support for a new method: [<u>Trace</u>](https://arxiv.org/abs/2406.11460), which refine text by constructing a knowledge graph. See it [<u>results</u>](#robot-supporting-methods) and [<u>details</u>](./docs/baseline_details.md).
+[24/07/06] We add support for a new method: [<u>Trace</u>](https://arxiv.org/abs/2406.11460), which refine text by constructing a knowledge graph. See it [<u>results</u>](#robot-supporting-methods) and [<u>details</u>](./docs/original_docs/baseline_details.md).
 
 [24/06/19] We add support for a new method: [<u>IRCoT</u>](https://arxiv.org/abs/2212.10509), and update the [<u>result table</u>](#robot-supporting-methods).
 
@@ -114,15 +126,18 @@ FlashRAG is still under development and there are many issues and room for impro
 
 [24/06/11] We have integrated `sentence transformers` in the retriever module. Now it's easier to use the retriever without setting pooling methods.
 
-[24/06/05] We have provided detailed document for reproducing existing methods (see [how to reproduce](./docs/reproduce_experiment.md), [baseline details](./docs/baseline_details.md)), and [<u>configurations settings</u>](./docs/configuration.md).
+[24/06/05] We have provided detailed document for reproducing existing methods (see [how to reproduce](./docs/original_docs/reproduce_experiment.md), [baseline details](./docs/original_docs/baseline_details.md)), and [<u>configurations settings</u>](./docs/original_docs/configuration.md).
 
-[24/06/02] We have provided an introduction of FlashRAG for beginners, see [<u>an introduction to flashrag</u>](./docs/introduction_for_beginners_en.md) ([<u>中文版</u>](./docs/introduction_for_beginners_zh.md) [<u>한국어</u>](./docs/introduction_for_beginners_kr.md)).
+[24/06/02] We have provided an introduction of FlashRAG for beginners, see [<u>an introduction to flashrag</u>](./docs/original_docs/introduction_for_beginners_en.md) ([<u>中文版</u>](./docs/original_docs/introduction_for_beginners_zh.md) [<u>한국어</u>](./docs/original_docs/introduction_for_beginners_kr.md)).
 
 [24/05/31] We supported Openai-series models as generator.
 
 </details>
 
 ## :wrench: Installation
+![PyPI - Version](https://img.shields.io/pypi/v/flashrag-dev) 
+![PyPI - Downloads](https://img.shields.io/pypi/dw/flashrag-dev) 
+![PyPI - Downloads](https://img.shields.io/pypi/dm/flashrag-dev)
 
 To get started with FlashRAG, you can simply install it with pip:
 
@@ -142,7 +157,7 @@ If you want to use vllm, sentence-transformers or pyserini, you can install the 
 
 ```bash
 # Install all extra dependencies
-pip install flashrag[full]
+pip install flashrag-dev[full]
 
 # Install vllm for faster speed
 pip install vllm>=0.4.1
@@ -181,7 +196,7 @@ To build an index, you first need to save your corpus as a `jsonl` file with eac
 {"id": "1", "contents": "..."}
 ```
 
-If you want to use Wikipedia as your corpus, you can refer to our documentation [Processing Wikipedia](./docs/process-wiki.md) to convert it into an indexable format.
+If you want to use Wikipedia as your corpus, you can refer to our documentation [Processing Wikipedia](./docs/original_docs/process-wiki.md) to convert it into an indexable format.
 
 ### Index Construction
 
@@ -252,6 +267,32 @@ python -m flashrag.retriever.index_builder \
   --save_dir indexes/ 
 ```
 
+### For Sparse Neural Retrieval Methods (SPLADE)
+
+##### Install Seismic Index:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # Install Rust for compiling
+pip install pyseismic-lsr # Install Seismic
+```
+
+##### Then build the index with Seismic:
+```bash
+python -m flashrag.retriever.index_builder \ # builder
+        --retrieval_method splade \ # Model name to trigger seismic index (splade only available)
+        --model_path retriever/splade-v3 \ # Local path or repository path are both supported.
+        --corpus_embedded_path data/ms_marco/ms_marco_embedded_corpus.jsonl \  # Use cached embedded corpus if corpus is already available in seismic expected format
+        --corpus_path data/ms_marco/ms_marco_corpus.jsonl \ # Corpus path in format {id, contents} jsonl file to be embedded if not already built
+        --save_dir indexes/ \ # save index directory
+        --use_fp16 \ # tell to use fp16 for splade model
+        --max_length 512 \ # max tokens for each document
+        --batch_size 4 \ # batch size for splade model (4-5 seems the best size for Tesla T4 16GB)
+        --n_postings 1000 \ # seismic number of posting lists
+        --centroid_fraction 0.2 \ # seismic centroids
+        --min_cluster_size 2 \ # seismic min cluster
+        --summary_energy 0.4 \ # seismic energy
+        --batched_indexing 10000000 # seismic batch
+        --nknn 32 # Optional parameter. Tell to seismic to use also knn graph. if not present seismic will work without knn graph
+```
 ### Using the ready-made pipeline
 
 You can use the pipeline class we have already built (as shown in [<u>pipelines</u>](#pipelines)) to implement the RAG process inside. In this case, you just need to configure the config and load the corresponding pipeline.
@@ -270,7 +311,7 @@ my_config = Config(
     config_dict = config_dict
 ```
 
-We provide comprehensive guidance on how to set configurations, you can see our [<u>configuration guidance</u>](./docs/configuration.md).
+We provide comprehensive guidance on how to set configurations, you can see our [<u>configuration guidance</u>](./docs/original_docs/configuration.md).
 You can also refer to the [<u>basic yaml file</u>](./flashrag/config/basic_config.yaml) we provide to set your own parameters.
 
 Next, load the corresponding dataset and initialize the pipeline. The components in the pipeline will be automatically loaded.
@@ -341,11 +382,11 @@ class ToyPipeline(BasicPipeline):
     return dataset
 ```
 
-Please first understand the input and output forms of the components you need to use from our [<u>documentation</u>](./docs/basic_usage.md).
+Please first understand the input and output forms of the components you need to use from our [<u>documentation</u>](./docs/original_docs/basic_usage.md).
 
 ### Just use components
 
-If you already have your own code and only want to use our components to embed the original code, you can refer to the [<u>basic introduction of the components</u>](./docs/basic_usage.md) to obtain the input and output formats of each component.
+If you already have your own code and only want to use our components to embed the original code, you can refer to the [<u>basic introduction of the components</u>](./docs/original_docs/basic_usage.md) to obtain the input and output formats of each component.
 
 ## :gear: Components
 
@@ -463,7 +504,7 @@ In each category, we have implemented corresponding common pipelines. Some pipel
           <td>Ranking and merging generated results based on each document</td>
         </tr>
         <tr>
-            <td rowspan="5">Loop</td>
+            <td rowspan="6">Loop</td>
             <td>Iterative Pipeline</td>
             <td>Alternating retrieval and generation</td>
         </tr>
@@ -482,6 +523,10 @@ In each category, we have implemented corresponding common pipelines. Some pipel
         <tr>
             <td>IRCoT Pipeline</td>
             <td>Integrate retrieval process with CoT</td>
+        </tr>
+        <tr>
+            <td>Reasoning Pipeline</td>
+            <td>Reasoning with retrieval</td>
         </tr>
     </tbody>
 </table>
@@ -531,17 +576,17 @@ python interface.py
 
 ## :robot: Supporting Methods
 
-We have implemented 15 works with a consistent setting of:
+We have implemented **23 works** with a consistent setting of:
 
 - **Generator:** LLAMA3-8B-instruct with input length of 2048
 - **Retriever:** e5-base-v2 as embedding model, retrieve 5 docs per query
-- **Prompt:** A consistent default prompt, template can be found in the [<u>method details</u>](./docs/baseline_details.md).
+- **Prompt:** A consistent default prompt, template can be found in the [<u>method details</u>](./docs/original_docs/baseline_details.md).
 
 For open-source methods, we implemented their processes using our framework. For methods where the author did not provide source code, we will try our best to follow the methods in the original paper for implementation.
 
-For necessary settings and hyperparameters specific to some methods, we have documented them in the **specific settings** column. For more details, please consult our [<u>reproduce guidance</u>](./docs/reproduce_experiment.md) and [<u>method details</u>](./docs/baseline_details.md).
+For necessary settings and hyperparameters specific to some methods, we have documented them in the **specific settings** column. For more details, please consult our [<u>reproduce guidance</u>](./docs/original_docs/reproduce_experiment.md) and [<u>method details</u>](./docs/original_docs/baseline_details.md).
 
-It’s important to note that, to ensure consistency, we have utilized a uniform setting. However, this setting may differ from the original setting of the method, leading to variations in results compared to the original outcomes.
+It's important to note that, to ensure consistency, we have utilized a uniform setting. However, this setting may differ from the original setting of the method, leading to variations in results compared to the original outcomes.
 
 | Method                                                                                    | Type        | NQ (EM) | TriviaQA (EM) | Hotpotqa (F1) | 2Wiki (F1) | PopQA (F1) | WebQA(EM) | Specific setting                                |
 | ----------------------------------------------------------------------------------------- | ----------- | ------- | ------------- | ------------- | ---------- | ---------- | --------- | ----------------------------------------------- |
@@ -562,8 +607,21 @@ It’s important to note that, to ensure consistency, we have utilized a uniform
 | [FLARE](https://arxiv.org/abs/2305.06983)                                                 | Loop        | 22.5    | 55.8          | 28.0          | 33.9       | 20.7       | 20.2      |                                                 |
 | [Iter-Retgen](https://arxiv.org/abs/2305.15294), [ITRG](https://arxiv.org/abs/2310.05149) | Loop        | 36.8    | 60.1          | 38.3          | 21.6       | 37.9       | 18.2      |                                                 |
 | [IRCoT](https://aclanthology.org/2023.acl-long.557.pdf)                                   | Loop        | 33.3    | 56.9          | 41.5          | 32.4       | 45.6       | 20.7      |                                                 |
-| [RQRAG](https://arxiv.org/abs/2404.00610)                                   | Loop        | 32.6    | 52.5          | 33.5          | 35.8       | 46.4       | 26.2      |  Use trained rqrag-llama2-7B                                               |
+| [RQRAG](https://arxiv.org/abs/2404.00610)                                   | Loop        | 32.6    | 52.5          | 33.5          | 35.8       | 46.4       | 26.2      |  Use trained rqrag-llama2-7B                                               | 
 
+#### 🚀 Reasoning-based Methods (NEW!)
+
+We now support **7 reasoning-based methods** that combine reasoning ability with retrieval, achieving superior performance on complex multi-hop tasks:
+
+| Method                                                                                    | Type        | NQ (EM) | TriviaQA (EM) | PopQA (EM) | Hotpotqa (F1) | 2Wiki (F1) |  Musique (F1) | Bamboogle (F1) | Specific setting                             |
+| ----------------------------------------------------------------------------------------- | ----------- | ------- | ------- | ------------- | ------------- | ---------- | ---------- | --------- | ----------------------------------------------- |
+| [Search-R1](https://arxiv.org/abs/2503.09516) | Reasoning | 45.2 | 62.2 | 49.2 | 54.5 | 42.6 | 29.2 |  59.9 | SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo |
+| [R1-Searcher](https://arxiv.org/pdf/2503.05592) | Reasoning | 36.9 | 61.6 | 42.0 | 49.0 | 49.1 | 24.7 | 57.7 | Qwen-2.5-7B-base-RAG-RL |
+| [O2-Searcher](https://arxiv.org/pdf/2505.16582) | Reasoning | 41.4 | 51.4 | 46.8 | 43.4 | 48.6 | 19.0 | 47.6 | O2-Searcher-Qwen2.5-3B-GRPO |
+| [AutoRefine](https://www.arxiv.org/pdf/2505.11277) | Reasoning | 43.8 | 59.8 | 32.4 | 54.0 | 50.3 | 23.6 | 46.6 | AutoRefine-Qwen2.5-3B-Base |
+| [ReaRAG](https://arxiv.org/abs/2503.21729) | Reasoning | 26.3 | 51.8 | 24.6 | 42.9 | 41.6 | 21.2 | 41.9 | ReaRAG-9B |
+| [CoRAG](https://arxiv.org/abs/2503.21729) | Reasoning | 40.9 | 63.1 | 36.0 | 56.6 | 60.7 | 31.9 | 54.1 | CoRAG-Llama3.1-8B-MultihopQA |
+| [SimpleDeepSearcher](https://arxiv.org/pdf/2505.16834) | Reasoning | 36.1 | 61.6 | 42.0 | 49.0 | 49.1 | 24.7 | 57.7 | Qwen-7B-SimpleDeepSearcher |
 
 ## :notebook: Supporting Datasets & Document Corpus
 
@@ -634,7 +692,7 @@ Our toolkit supports jsonl format for retrieval document collections, with the f
 
 The `contents` key is essential for building the index. For documents that include both text and title, we recommend setting the value of `contents` to `{title}\n{text}`. The corpus file can also contain other keys to record additional characteristics of the documents.
 
-In the academic research, Wikipedia and MS MARCO are the most commonly used retrieval document collections. For Wikipedia, we provide a [<u>comprehensive script</u>](./docs/process-wiki.md) to process any Wikipedia dump into a clean corpus. Additionally, various processed versions of the Wikipedia corpus are available in many works, and we have listed some reference links.
+In the academic research, Wikipedia and MS MARCO are the most commonly used retrieval document collections. For Wikipedia, we provide a [<u>comprehensive script</u>](./docs/original_docs/process-wiki.md) to process any Wikipedia dump into a clean corpus. Additionally, various processed versions of the Wikipedia corpus are available in many works, and we have listed some reference links.
 
 For MS MARCO, it is already processed upon release and can be directly downloaded from its [<u>hosting link</u>](https://huggingface.co/datasets/Tevatron/msmarco-passage-corpus) on Hugging Face.
 
@@ -644,12 +702,19 @@ To facilitate easier replication of the experiments, we now provide a preprocess
 
 The index was created using the e5-base-v2 retriever on our uploaded wiki18_100w dataset, which is consistent with the index used in our experiments.
 
+## :lollipop: Awesome Work using FlashRAG
+
+- [R1-Searcher](https://github.com/SsmallSong/R1-Searcher), a method that incentivizes the search capability in LLMs via reinforcement learning
+- [ReSearch](https://github.com/Agent-RL/ReSearch), a method that learns to reason with search for LLMs via reinforcement learning
+- [AutoCoA](https://github.com/ADaM-BJTU/AutoCoA), a method that internalizes chain-of-action generation into reasoning models
+
 ## :raised_hands: Additional FAQs
 
-- [How should I set different experimental parameters?](./docs/configuration.md)
-- [How to build my own corpus, such as a specific segmented Wikipedia?](./docs/process-wiki.md)
-- [How to index my own corpus?](./docs/building-index.md)
-- [How to reproduce supporting methods?](./docs/reproduce_experiment.md)
+- [How should I set different experimental parameters?](./docs/original_docs/configuration.md)
+- [How to build my own corpus, such as a specific segmented Wikipedia?](./docs/original_docs/process-wiki.md)
+- [How to index my own corpus?](./docs/original_docs/building-index.md)
+- [How to reproduce supporting methods?](./docs/original_docs/reproduce_experiment.md)
+- [How can I debug common RAG failure modes when using FlashRAG?](./docs/rag_failure_modes_and_debug_checklist.md)
 
 ## :bookmark: License
 
@@ -660,18 +725,35 @@ FlashRAG is licensed under the [<u>MIT License</u>](./LICENSE).
 Please kindly cite our paper if helps your research:
 
 ```BibTex
-@article{FlashRAG,
-    author={Jiajie Jin and
-            Yutao Zhu and
-            Xinyu Yang and
-            Chenghao Zhang and
-            Zhicheng Dou},
-    title={FlashRAG: A Modular Toolkit for Efficient Retrieval-Augmented Generation Research},
-    journal={CoRR},
-    volume={abs/2405.13576},
-    year={2024},
-    url={https://arxiv.org/abs/2405.13576},
-    eprinttype={arXiv},
-    eprint={2405.13576}
+@inproceedings{FlashRAG,
+  author       = {Jiajie Jin and
+                  Yutao Zhu and
+                  Zhicheng Dou and
+                  Guanting Dong and
+                  Xinyu Yang and
+                  Chenghao Zhang and
+                  Tong Zhao and
+                  Zhao Yang and
+                  Ji{-}Rong Wen},
+  editor       = {Guodong Long and
+                  Michale Blumestein and
+                  Yi Chang and
+                  Liane Lewin{-}Eytan and
+                  Zi Helen Huang and
+                  Elad Yom{-}Tov},
+  title        = {FlashRAG: {A} Modular Toolkit for Efficient Retrieval-Augmented Generation
+                  Research},
+  booktitle    = {Companion Proceedings of the {ACM} on Web Conference 2025, {WWW} 2025,
+                  Sydney, NSW, Australia, 28 April 2025 - 2 May 2025},
+  pages        = {737--740},
+  publisher    = {{ACM}},
+  year         = {2025},
+  url          = {https://doi.org/10.1145/3701716.3715313},
+  doi          = {10.1145/3701716.3715313}
 }
 ```
+
+
+## Star History
+
+[![Star History Chart](https://star-history.dera.page/svg?repos=RUC-NLPIR/FlashRAG&type=Date)](https://star-history.dera.page/#RUC-NLPIR/FlashRAG&Date)

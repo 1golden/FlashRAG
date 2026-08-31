@@ -12,6 +12,7 @@ from transformers import (
     AutoConfig,
 )
 from flashrag.generator.utils import resolve_max_tokens
+from flashrag.utils import get_device
 
 
 class BaseGenerator:
@@ -260,13 +261,25 @@ class VLLMGenerator(BaseGenerator):
         if return_raw_output:
             base_output = outputs
         else:
-            generated_texts = [output.outputs[0].text for output in outputs]
+            generated_texts = [
+                [c.text for c in output.outputs] if len(output.outputs) > 1 else output.outputs[0].text
+                for output in outputs
+            ]
             base_output = generated_texts
         if return_scores:
             scores = []
             for output in outputs:
-                logprobs = output.outputs[0].logprobs
-                scores.append([np.exp(list(score_dict.values())[0].logprob) for score_dict in logprobs])
+                for single_output in output.outputs:
+                    if single_output.logprobs:
+                        token_probs = [np.exp(list(score_dict.values())[0].logprob) 
+                                      for score_dict in single_output.logprobs]
+                        output_scores.append(token_probs)
+                    else:
+                        output_scores.append([])
+                if len(output_scores) == 1:
+                    scores.append(output_scores[0])
+                else:
+                    scores.append(output_scores)
             return base_output, scores
         else:
             return base_output
@@ -553,13 +566,13 @@ class FastChatGenerator(HFCausalLMGenerator):
             max_gpu_memory = None
             import torch
             self.gpu_num = torch.cuda.device_count()
-            if self.gpu_num != 1:
+            if self.gpu_num > 1:
                 available_gpu_memory = get_gpu_memory()
                 max_gpu_memory = str(int(min(available_gpu_memory) * gpu_memory_utilization)) + "GiB"
 
             model, tokenizer = load_model(
                 self.model_path,
-                device="cuda",
+                device=get_device(),
                 num_gpus=self.gpu_num,
                 max_gpu_memory=max_gpu_memory,
                 load_8bit=False,

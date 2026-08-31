@@ -8,15 +8,15 @@ peft
 PyYAML
 rank_bm25
 rouge
-spacy==3.6.1
+spacy
 tiktoken
 torch
 tqdm
 transformers>=4.40.0
-bm25s[core]==0.2.0
+bm25s[core]==0.2.1
 fschat
 streamlit
-chonkie>=0.4.0
-gradio==5.11.0
+chonkie>=1.0.2, <1.1.0
+gradio>=5.0.0
 rouge-chinese
 jieba

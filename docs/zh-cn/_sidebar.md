@@ -17,25 +17,23 @@
 * 组件
     * [检索器](zh-cn/component/retriever.md)
     * [生成器](zh-cn/component/generator.md)
-    * [评估器](zh-cn/component/judger.md)
+    * [判别器](zh-cn/component/judger.md)
     * [精炼器](zh-cn/component/refiner.md)
 
 * 提示模板
     * [概述](zh-cn/prompt-template.md)
 
 * 流水线
-    * [流水线](zh-cn/pipeline.md)
+    * [流水线介绍](zh-cn/pipeline.md)
 
 * 评估
     * [概述](zh-cn/evaluation.md)
     * [评估指标](zh-cn/evaluation-metrics.md)
 
-* 重现实验
+* 复现实验
     * [结果](zh-cn/results.md)
-    * [重现过程](zh-cn/reproduce-process.md)
-* WebUI
-    * [功能](zh-cn/webui-intro.md)
-    * [对话](zh-cn/webui-chat.md)
+    * [复现指南](zh-cn/reproduce-process.md)
+    
 * API 参考
     * [flashrag.config](zh-cn/flashrag.config.md)
     * [flashrag.dataset](zh-cn/flashrag.dataset.md)

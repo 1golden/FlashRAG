@@ -21,7 +21,7 @@
 </p>
 </h4>
 
-FlashRAG是一个用于复现和开发检索增强生成（RAG）研究的Python工具包。我们的工具包包括36个预处理的基准RAG数据集和16个最先进的RAG算法。
+FlashRAG是一个用于复现和开发检索增强生成（RAG）研究的Python工具包。我们的工具包包括36个预处理的基准RAG数据集和17个最先进的RAG算法。
 
 <p align="center">
 <img src="asset/framework.jpg">
@@ -55,7 +55,7 @@ https://github.com/user-attachments/assets/e34a90c0-5e0f-4f76-886e-e30de8a6f8d1
 
 - **全面的基准数据集**：收集了36个预处理的RAG基准数据集，用于测试和验证RAG模型的性能。
 
-- **预实现的先进RAG算法**：基于我们的框架，提供16个先进的RAG算法及其报告结果。轻松在不同设置下复现结果。
+- **预实现的先进RAG算法**：基于我们的框架，提供17个先进的RAG算法及其报告结果。轻松在不同设置下复现结果。
 
 - **高效的预处理过程**：通过提供各种脚本，如**语料处理**、**索引构建**和**文档预检索**，简化RAG工作流准备。
 
@@ -75,13 +75,20 @@ FlashRAG仍在开发中，存在许多问题和改进空间。我们将继续更
 - [ ] 增强代码的适应性和可读性
 
 ## :page_with_curl: 更新日志
+[25/03/21] 我们新增了对**推理流程**的支持，这是一种结合推理能力和检索的新范式，代表工作包括[Search-o1](https://github.com/sunnynexus/Search-o1)、[R1-Searcher](https://github.com/SsmallSong/R1-Searcher)、[ReSearch](https://github.com/Agent-RL/ReSearch)。我们在各种RAG基准上评估了流程的性能，在多跳推理数据集（如Hotpotqe）上可以达到接近60的F1分数。详见[**结果表**](#robot-supporting-methods)。
+
+
+[25/02/24] 我们新增了对多模态RAG的支持，包括Llava、Qwen、InternVL等MLLM，以及基于Clip结构的各类检索器。
+
+[25/01/21] 我们的论文 FlashRAG: A Python Toolkit for Efficient RAG Research 已经被 **Resource Track of the 2025 ACM Web Conference (WWW 2025)** 接收! 
+
 [25/01/12] 介绍 <strong>FlashRAG-UI</strong>，一个易于使用的界面。您可以通过它轻松快捷地配置和体验支持的RAG方法，并在基准上评估这些方法。
 
-[25/01/11] 我们添加了对新方法[<u>RQRAG</u>](https://arxiv.org/abs/2404.00610)方法的支持，详见[**复现实验**](docs/reproduce_experiment_zh.md)。
+[25/01/11] 我们添加了对新方法[<u>RQRAG</u>](https://arxiv.org/abs/2404.00610)方法的支持，详见[**复现实验**](docs/original_docs/reproduce_experiment_zh.md)。
 
-[25/01/07] 我们目前支持多个检索器的聚合，详见[**多检索器使用**](https://github.com/RUC-NLPIR/FlashRAG/blob/main/docs/multi_retriever_usage.md)。
+[25/01/07] 我们目前支持多个检索器的聚合，详见[**多检索器使用**](https://github.com/RUC-NLPIR/FlashRAG/blob/main/docs/original_docs/multi_retriever_usage.md)。
 
-[25/01/07] 我们集成了一个非常灵活且轻量级的语料库分块库[**Chunkie**](https://github.com/chonkie-ai/chonkie?tab=readme-ov-file#usage)，支持各种自定义分块方法（tokens、句子、语义等）。在[<u>分块文档语料库</u>](docs/chunk-doc-corpus.md)中使用它。
+[25/01/07] 我们集成了一个非常灵活且轻量级的语料库分块库[**Chunkie**](https://github.com/chonkie-ai/chonkie?tab=readme-ov-file#usage)，支持各种自定义分块方法（tokens、句子、语义等）。在[<u>分块文档语料库</u>](docs/original_docs/chunk-doc-corpus.md)中使用它。
 
 [24/10/21] 我们发布了一个基于Paddle框架的版本，支持中国硬件平台。详情请参阅[FlashRAG Paddle](https://github.com/RUC-NLPIR/FlashRAG-Paddle)。
 
@@ -100,7 +107,7 @@ FlashRAG仍在开发中，存在许多问题和改进空间。我们将继续更
 
 [24/07/17] 由于HuggingFace的一些未知问题，我们的原始数据集链接已失效。我们已更新链接。如果遇到任何问题，请检查[新链接](https://huggingface.co/datasets/RUC-NLPIR/FlashRAG_datasets/)。
 
-[24/07/06] 我们添加了对新方法[<u>Trace</u>](https://arxiv.org/abs/2406.11460)的支持，通过构建知识图谱来优化文本。请参阅[<u>结果</u>](#robot-supporting-methods)和[<u>详情</u>](./docs/baseline_details.md)。
+[24/07/06] 我们添加了对新方法[<u>Trace</u>](https://arxiv.org/abs/2406.11460)的支持，通过构建知识图谱来优化文本。请参阅[<u>结果</u>](#robot-supporting-methods)和[<u>详情</u>](./docs/original_docs/baseline_details_zh.md)。
 
 [24/06/19] 我们添加了对新方法[<u>IRCoT</u>](https://arxiv.org/abs/2212.10509)的支持，并更新了[<u>结果表</u>](#robot-supporting-methods)。
 
@@ -108,9 +115,9 @@ FlashRAG仍在开发中，存在许多问题和改进空间。我们将继续更
 
 [24/06/11] 我们在检索器模块中集成了`句子转换器`。现在使用检索器时无需设置池化方法。
 
-[24/06/05] 我们提供了详细的文档来复现现有方法（参见[如何复现](./docs/reproduce_experiment.md)，[基线详情](./docs/baseline_details.md)），以及[<u>配置设置</u>](./docs/configuration.md)。
+[24/06/05] 我们提供了详细的文档来复现现有方法（参见[如何复现](./docs/original_docs/reproduce_experiment_zh.md)，[基线详情](./docs/original_docs/baseline_details_zh.md)），以及[<u>配置设置</u>](./docs/original_docs/configuration.md)。
 
-[24/06/02] 我们为初学者提供了FlashRAG的介绍，参见[<u>FlashRAG介绍</u>](./docs/introduction_for_beginners_en.md)（[<u>中文版</u>](./docs/introduction_for_beginners_zh.md) [<u>한국어</u>](./docs/introduction_for_beginners_kr.md)）。
+[24/06/02] 我们为初学者提供了FlashRAG的介绍，参见[<u>FlashRAG介绍</u>](./docs/original_docs/introduction_for_beginners_en.md)（[<u>中文版</u>](./docs/original_docs/introduction_for_beginners_zh.md) [<u>한국어</u>](./docs/original_docs/introduction_for_beginners_kr.md)）。
 
 [24/05/31] 我们支持Openai系列模型作为生成器。
 
@@ -172,7 +179,7 @@ conda install -c pytorch -c nvidia faiss-gpu=1.8.0
 {"id": "1", "contents": "..."}
 ```
 
-如果您想使用维基百科作为语料库，可以参考我们的文档[处理维基百科](./docs/process-wiki.md)将其转换为索引格式。
+如果您想使用维基百科作为语料库，可以参考我们的文档[处理维基百科](./docs/original_docs/process-wiki.md)将其转换为索引格式。
 
 ### 索引构建
 
@@ -262,7 +269,7 @@ my_config = Config(
 )
 ```
 
-我们提供了全面的配置设置指南，您可以参阅我们的[<u>配置指南</u>](./docs/configuration.md)。
+我们提供了全面的配置设置指南，您可以参阅我们的[<u>配置指南</u>](./docs/original_docs/configuration.md)。
 您还可以参考我们提供的[<u>yaml文件</u>](./flashrag/config/basic_config.yaml)来设置自己的参数。
 
 接下来，加载相应的数据集并初始化管道。管道中的组件将自动加载。
@@ -331,11 +338,11 @@ class ToyPipeline(BasicPipeline):
         return dataset
 ```
 
-请首先从我们的[<u>文档</u>](./docs/basic_usage.md)中了解您需要使用的组件的输入和输出形式。
+请首先从我们的[<u>文档</u>](./docs/original_docs/basic_usage.md)中了解您需要使用的组件的输入和输出形式。
 
 ### 仅使用组件
 
-如果您已经有自己的代码，只想使用我们的组件嵌入原始代码，您可以参考[<u>组件基本介绍</u>](./docs/basic_usage.md)获取每个组件的输入和输出格式。
+如果您已经有自己的代码，只想使用我们的组件嵌入原始代码，您可以参考[<u>组件基本介绍</u>](./docs/original_docs/basic_usage.md)获取每个组件的输入和输出格式。
 
 ## :gear: 组件
 
@@ -453,7 +460,7 @@ class ToyPipeline(BasicPipeline):
           <td>根据每个文档对生成的结果进行排序和合并</td>
         </tr>
         <tr>
-            <td rowspan="5">循环</td>
+            <td rowspan="6">循环</td>
             <td>Iterative Pipeline</td>
             <td>交替检索和生成</td>
         </tr>
@@ -472,6 +479,10 @@ class ToyPipeline(BasicPipeline):
         <tr>
             <td>IRCoT Pipeline</td>
             <td>将检索过程与思维链集成</td>
+        </tr>
+        <tr>
+            <td>Reasoning Pipeline</td>
+            <td>推理流程</td>
         </tr>
     </tbody>
 </table>
@@ -516,7 +527,7 @@ class ToyPipeline(BasicPipeline):
 #### 体验我们精心设计的FlashRAG-UI——不仅好用，更让人赏心悦目:
 要使用FlashRAG-UI，您需要确保您的`Python >= 3.10`并安装以下依赖：
 ```bash
-pip install gradio=5.9.1
+pip install gradio==5.9.1
 ```
 
 然后运行以下命令：
@@ -530,11 +541,11 @@ python interface.py
 我们在一致的设置下评测了15种RAG基线模型：
 - **生成器**：LLAMA3-8B-instruct，输入长度为2048
 - **检索器**：e5-base-v2作为嵌入模型，每个查询检索5个文档
-- **提示**：使用一致的默认提示，模板可以在[<u>方法详情</u>](./docs/baseline_details.md)中找到。
+- **提示**：使用一致的默认提示，模板可以在[<u>方法详情</u>](./docs/original_docs/baseline_details_zh.md)中找到。
 
 对于开源方法，我们使用我们的框架实现了它们的流程。对于作者未提供源代码的方法，我们尽最大努力按照原始论文中的方法进行实现。
 
-对于某些方法的必要设置和超参数，我们在**特定设置**列中进行了记录。更多详情请参阅我们的[<u>复现指南</u>](./docs/reproduce_experiment.md)和[<u>方法详情</u>](./docs/baseline_details.md)。
+对于某些方法的必要设置和超参数，我们在**特定设置**列中进行了记录。更多详情请参阅我们的[<u>复现指南</u>](./docs/original_docs/reproduce_experiment_zh.md)和[<u>方法详情</u>](./docs/original_docs/baseline_details_zh.md)。
 
 需要注意的是，为了确保一致性，我们使用了统一的设置。然而，这一设置可能与方法的原始设置不同，导致结果与原始结果有所差异。
 
@@ -558,7 +569,7 @@ python interface.py
 | [Iter-Retgen](https://arxiv.org/abs/2305.15294),      [ITRG](https://arxiv.org/abs/2310.05149)   | Loop | 36.8    | 60.1          | 38.3          | 21.6| 37.9| 18.2| |
 | [IRCoT](https://aclanthology.org/2023.acl-long.557.pdf) | 循环 | 33.3| 56.9|41.5|32.4 |45.6 |20.7 | |
 | [RQRAG](https://arxiv.org/abs/2404.00610)                                   | Loop        | 32.6    | 52.5          | 33.5          | 35.8       | 46.4       | 26.2      |  使用训练的 rqrag-llama2-7B                                               |
-
+| [R1-Searcher](https://arxiv.org/pdf/2503.05592) | 推理 | 37.3 | 58.7 | 59.5 | 55.5 | 43.9 | 27.5 | 使用训练的 Qwen2.5-7B-base-RAG-RL |
 ## :notebook: 支持的数据集和文档语料库
 
 ### 数据集
@@ -625,7 +636,7 @@ python interface.py
 ```
 `contents`键是构建索引的关键。对于包含文本和标题的文档，我们建议将`contents`的值设置为`{title}\n{text}`。语料库文件还可以包含其他键来记录文档的附加特征。
 
-在学术研究中，维基百科和MS MARCO是最常用的检索文档集合。对于维基百科，我们提供了一个[<u>综合脚本</u>](./docs/process-wiki.md)来处理任何维基百科转储为干净的语料库。此外，许多工作中提供了各种处理版本的维基百科语料库，我们列出了一些参考链接。
+在学术研究中，维基百科和MS MARCO是最常用的检索文档集合。对于维基百科，我们提供了一个[<u>综合脚本</u>](./docs/original_docs/process-wiki.md)来处理任何维基百科转储为干净的语料库。此外，许多工作中提供了各种处理版本的维基百科语料库，我们列出了一些参考链接。
 
 对于MS MARCO，它在发布时已经处理完毕，可以直接从其在Hugging Face上的[<u>托管链接</u>](https://huggingface.co/datasets/Tevatron/msmarco-passage-corpus)下载。
 
@@ -637,10 +648,10 @@ python interface.py
 
 ## :raised_hands: 其他常见问题
 
-- [如何设置不同的实验参数？](./docs/configuration.md)
-- [如何构建我自己的语料库，例如特定分段的维基百科？](./docs/process-wiki.md)
-- [如何索引我自己的语料库？](./docs/building-index.md)
-- [如何复现支持的方法？](./docs/reproduce_experiment.md)
+- [如何设置不同的实验参数？](./docs/original_docs/configuration.md)
+- [如何构建我自己的语料库，例如特定分段的维基百科？](./docs/original_docs/process-wiki.md)
+- [如何索引我自己的语料库？](./docs/original_docs/building-index.md)
+- [如何复现支持的方法？](./docs/original_docs/reproduce_experiment_zh.md)
 
 ## :bookmark: 许可证
 

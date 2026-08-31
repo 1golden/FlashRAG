@@ -1,9 +1,10 @@
 import os
+import re
 import json
 import importlib
 from transformers import AutoConfig
 from flashrag.dataset.dataset import Dataset
-
+import torch
 
 def get_dataset(config):
     """Load dataset from config."""
@@ -27,7 +28,7 @@ def get_dataset(config):
             continue
         else:
             print(f"Loading {split} dataset from: {split_path}...")
-        if split in ["test", "val", "dev"]:
+        if split in ["test", "val", "dev", "train"]:
             split_dict[split] = Dataset(
                 config, split_path, sample_num=config["test_sample_num"], random_sample=config["random_sample"]
             )
@@ -83,6 +84,8 @@ def get_retriever(config):
 
     if config["retrieval_method"] == "bm25":
         return getattr(importlib.import_module("flashrag.retriever"), "BM25Retriever")(config)
+    elif config["retrieval_method"] == "splade":
+        return getattr(importlib.import_module("flashrag.retriever"), "SparseRetriever")(config)
     else:
         try:
             model_config = AutoConfig.from_pretrained(config["retrieval_model_path"])
@@ -140,11 +143,15 @@ def get_refiner(config, retriever=None, generator=None):
         print("Warning", e)
         model_config, arch = "", ""
 
-    if "recomp" in refiner_name or "bert" in arch:
+    if "recomp" in refiner_name:
         if model_config.model_type == "t5":
             refiner_class = "AbstractiveRecompRefiner"
         else:
             refiner_class = "ExtractiveRefiner"
+    elif 'bert' in arch:
+        refiner_class = "ExtractiveRefiner"
+    elif 'T5' in arch or 'Bart' in arch:
+        refiner_class = "AbstractiveRecompRefiner"
     elif "lingua" in refiner_name:
         refiner_class = "LLMLinguaRefiner"
     elif "selective-context" in refiner_name or "sc" in refiner_name:
@@ -169,3 +176,20 @@ def hash_object(o) -> str:
         dill.dump(o, buffer)
         m.update(buffer.getbuffer())
         return base58.b58encode(m.digest()).decode()
+
+def extract_between(text: str, start_tag: str, end_tag: str):
+    pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
+    matches = re.findall(pattern, text, flags=re.DOTALL)
+    if matches:
+        return matches[-1].strip()
+    return None
+
+def extract_between_all(text:str, start_tag:str, end_tag:str):
+    pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
+    matches = re.findall(pattern, text, flags=re.DOTALL)
+    if matches:
+        return matches
+    return None
+
+def get_device() -> str:
+    return "cuda" if torch.cuda.is_available() else "cpu"

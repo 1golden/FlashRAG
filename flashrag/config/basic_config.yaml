@@ -45,6 +45,7 @@ seed: 2024
 # Whether save intermediate data
 save_intermediate_data: True
 save_note: "experiment"
+is_reasoning: false
 
 # -------------------------------------------------Retrieval Settings------------------------------------------------#
 # If set the name, the model path will be find in global paths
@@ -66,7 +67,11 @@ retrieval_cache_path: ~ # path to the retrieval cache
 retrieval_pooling_method: ~ # set automatically if not provided
 bm25_backend: bm25s # pyserini, bm25s
 use_sentence_transformer: False
+silent_retrieval: True # whether to silent the retrieval process
 
+seismic_query_cut: 10 # parameters for seismic. See seismic paper for full details
+seismic_heap_factor: 0.8 # parameters for seismic. See seismic paper for full details
+# -------------------------------------------------Reranker Settings------------------------------------------------#
 use_reranker: False # whether to use reranker
 rerank_model_name: ~ # same as retrieval_method
 rerank_model_path: ~ # path to reranker model, path will be automatically find in `model2path`
@@ -115,6 +120,7 @@ gpu_memory_utilization: 0.85 # ratio of gpu's memory usage for generator
 # -------------------------------------------------Evaluation Settings------------------------------------------------#
 # Metrics to evaluate the result
 metrics: ["em", "f1", "acc", "precision", "recall", "input_tokens"]
+
 # Specify setting for metric, will be called within certain metrics
 metric_setting:
   retrieval_recall_topk: 5

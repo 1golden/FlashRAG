@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from flashrag.retriever.utils import load_model, pooling, parse_query, parse_image
+from flashrag.utils import get_device
 
 
 class Encoder:
@@ -24,13 +25,14 @@ class Encoder:
             Encodes a list of queries into embeddings.
     """
 
-    def __init__(self, model_name, model_path, pooling_method, max_length, use_fp16, instruction):
+    def __init__(self, model_name, model_path, pooling_method, max_length, use_fp16=True, instruction=None, silent=False):
         self.model_name = model_name
         self.model_path = model_path
         self.pooling_method = pooling_method
         self.max_length = max_length
         self.use_fp16 = use_fp16
         self.instruction = instruction
+        self.silent = silent
         self.gpu_num = torch.cuda.device_count()
         self.model, self.tokenizer = load_model(model_path=model_path, use_fp16=use_fp16)
 
@@ -41,9 +43,11 @@ class Encoder:
         inputs = self.tokenizer(
             query_list, max_length=self.max_length, padding=True, truncation=True, return_tensors="pt"
         )
-        inputs = {k: v.cuda() for k, v in inputs.items()}
+        inputs = {k: v.to(get_device()) for k, v in inputs.items()}
 
-        if "T5" in type(self.model).__name__ or (isinstance(self.model, torch.nn.DataParallel) and "T5" in type(self.model.module).__name__):
+        if "T5" in type(self.model).__name__ or (
+            isinstance(self.model, torch.nn.DataParallel) and "T5" in type(self.model.module).__name__
+        ):
             # T5-based retrieval model
             decoder_input_ids = torch.zeros((inputs["input_ids"].shape[0], 1), dtype=torch.long).to(
                 inputs["input_ids"].device
@@ -53,11 +57,9 @@ class Encoder:
 
         else:
             output = self.model(**inputs, return_dict=True)
-            pooler_output = output.get('pooler_output', None)
-            last_hidden_state = output.get('last_hidden_state', None)
-            query_emb = pooling(
-                pooler_output, last_hidden_state, inputs["attention_mask"], self.pooling_method
-            )
+            pooler_output = output.get("pooler_output", None)
+            last_hidden_state = output.get("last_hidden_state", None)
+            query_emb = pooling(pooler_output, last_hidden_state, inputs["attention_mask"], self.pooling_method)
         if "dpr" not in self.model_name:
             query_emb = torch.nn.functional.normalize(query_emb, dim=-1)
         query_emb = query_emb.detach().cpu().numpy()
@@ -67,7 +69,7 @@ class Encoder:
     @torch.inference_mode()
     def encode(self, query_list: List[str], batch_size=64, is_query=True) -> np.ndarray:
         query_emb = []
-        for i in tqdm(range(0, len(query_list), batch_size), desc="Encoding process: "):
+        for i in tqdm(range(0, len(query_list), batch_size), desc="Encoding process: ", disable=self.silent):
             query_emb.append(self.single_batch_encode(query_list[i : i + batch_size], is_query))
         query_emb = np.concatenate(query_emb, axis=0)
         return query_emb
@@ -98,7 +100,7 @@ class STEncoder:
             Encodes a list of queries into embeddings using multiple GPUs.
     """
 
-    def __init__(self, model_name, model_path, max_length, use_fp16, instruction):
+    def __init__(self, model_name, model_path, max_length, use_fp16, instruction, silent=False):
         import torch
         from sentence_transformers import SentenceTransformer
 
@@ -107,6 +109,7 @@ class STEncoder:
         self.max_length = max_length
         self.use_fp16 = use_fp16
         self.instruction = instruction
+        self.silent = silent
         self.model = SentenceTransformer(
             model_path, trust_remote_code=True, model_kwargs={"torch_dtype": torch.float16 if use_fp16 else torch.float}
         )
@@ -115,7 +118,11 @@ class STEncoder:
     def encode(self, query_list: Union[List[str], str], batch_size=64, is_query=True) -> np.ndarray:
         query_list = parse_query(self.model_name, query_list, self.instruction, is_query)
         query_emb = self.model.encode(
-            query_list, batch_size=batch_size, convert_to_numpy=True, normalize_embeddings=True, show_progress_bar=True
+            query_list,
+            batch_size=batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=not self.silent,
         )
         query_emb = query_emb.astype(np.float32, order="C")
 
@@ -128,10 +135,9 @@ class STEncoder:
         query_emb = self.model.encode_multi_process(
             query_list,
             pool,
-            convert_to_numpy=True,
             normalize_embeddings=True,
             batch_size=batch_size,
-            show_progress_bar=True,
+            show_progress_bar=not self.silent,
         )
         self.model.stop_multi_process_pool(pool)
         query_emb = query_emb.astype(np.float32, order="C")
@@ -142,11 +148,12 @@ class STEncoder:
 class ClipEncoder:
     """ClipEncoder class for encoding queries using CLIP."""
 
-    def __init__(self, model_name, model_path):
+    def __init__(self, model_name, model_path, silent=False):
 
         self.model_name = model_name
         self.model_path = model_path
         self.load_clip_model()
+        self.silent = silent
 
     def load_clip_model(self):
         from transformers import AutoModel, AutoProcessor
@@ -172,11 +179,10 @@ class ClipEncoder:
         # set model max length for model that not specified in config.json
         if self.processor is not None and self.processor.tokenizer.model_max_length > 100000:
             try:
-                model_max_length = config['text_config']['max_position_embeddings']
+                model_max_length = config["text_config"]["max_position_embeddings"]
             except:
                 model_max_length = 512
-            self.processor.tokenizer.model_max_length = model_max_length    
-
+            self.processor.tokenizer.model_max_length = model_max_length
 
     @torch.inference_mode()
     def single_batch_encode(self, query_list: Union[List[str], str], modal="image") -> np.ndarray:
@@ -191,7 +197,7 @@ class ClipEncoder:
         if not isinstance(query_list, list):
             query_list = [query_list]
         query_emb = []
-        for i in tqdm(range(0, len(query_list), batch_size), desc="Encoding process: "):
+        for i in tqdm(range(0, len(query_list), batch_size), desc="Encoding process: ", disable=self.silent):
             query_emb.append(self.single_batch_encode(query_list[i : i + batch_size], modal))
         query_emb = np.concatenate(query_emb, axis=0)
         return query_emb
@@ -206,7 +212,7 @@ class ClipEncoder:
     @torch.inference_mode()
     def encode_image(self, image_list: List) -> np.ndarray:
         # Each item in image_list: PIL Image, local path, or URL
-        if self.model_type == "CLIPModel" or self.model_type == 'ChineseCLIPModel':
+        if self.model_type == "CLIPModel" or self.model_type == "ChineseCLIPModel":
             # need handle image
             image_list = [parse_image(image) for image in image_list]
             inputs = self.processor(images=image_list, return_tensors="pt")
@@ -223,7 +229,7 @@ class ClipEncoder:
     @torch.inference_mode()
     def encode_text(self, text_list: List[str]) -> np.ndarray:
         # Each item in image_list: PIL Image, local path, or URL
-        if self.model_type == "CLIPModel" or self.model_type == 'ChineseCLIPModel':
+        if self.model_type == "CLIPModel" or self.model_type == "ChineseCLIPModel":
             inputs = self.processor(
                 text=text_list,
                 padding=True,

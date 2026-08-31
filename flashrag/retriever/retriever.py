@@ -1,6 +1,8 @@
 import json
 import os
 import time
+import requests
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import warnings
 from typing import List, Dict, Union
@@ -10,10 +12,13 @@ import faiss
 import copy
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from flashrag.utils import get_reranker
+from flashrag.utils import get_reranker, get_device
 from flashrag.retriever.utils import load_corpus, load_docs, convert_numpy, judge_image, judge_zh
 from flashrag.retriever.encoder import Encoder, STEncoder, ClipEncoder
+import torch
 
+if get_device() == "cpu":
+    faiss.omp_set_num_threads(1)
 
 def cache_manager(func):
     """
@@ -116,7 +121,7 @@ class BaseRetriever:
     def __init__(self, config):
         self._config = config
         self.update_config()
-    
+
     @property
     def config(self):
         return self._config
@@ -125,11 +130,11 @@ class BaseRetriever:
     def config(self, config_data):
         self._config = config_data
         self.update_config()
-    
+
     def update_config(self):
         self.update_base_setting()
         self.update_additional_setting()
-    
+
     def update_base_setting(self):
         self.retrieval_method = self._config["retrieval_method"]
         self.topk = self._config["retrieval_topk"]
@@ -154,8 +159,11 @@ class BaseRetriever:
             assert self.cache_path is not None
             with open(self.cache_path, "r") as f:
                 self.cache = json.load(f)
+        self.silent = self._config["silent_retrieval"] if "silent_retrieval" in self._config else False
+
     def update_additional_setting(self):
         pass
+
     def _save_cache(self):
         self.cache = convert_numpy(self.cache)
 
@@ -163,6 +171,7 @@ class BaseRetriever:
             if isinstance(obj, np.float32):
                 return float(obj)
             raise TypeError(f"Type {type(obj)} not serializable")
+
         with open(self.cache_save_path, "w") as f:
             json.dump(self.cache, f, indent=4, default=custom_serializer)
 
@@ -220,9 +229,10 @@ class BM25Retriever(BaseTextRetriever):
     def __init__(self, config, corpus=None):
         super().__init__(config)
         self.load_model_corpus(corpus)
+
     def update_additional_setting(self):
         self.backend = self._config["bm25_backend"]
-    
+
     def load_model_corpus(self, corpus):
         if self.backend == "pyserini":
             # Warning: the method based on pyserini will be deprecated
@@ -236,25 +246,24 @@ class BM25Retriever(BaseTextRetriever):
                 else:
                     self.corpus = corpus
             self.max_process_num = 8
-
-            is_zh = judge_zh(self.corpus[0]['contents'])
-            if is_zh:
-                self.searcher.set_language('zh')
+               
         elif self.backend == "bm25s":
             import Stemmer
             import bm25s
 
             self.corpus = load_corpus(self.corpus_path)
-            is_zh = judge_zh(self.corpus[0]['contents'])
+            is_zh = judge_zh(self.corpus[0]["contents"])
 
             self.searcher = bm25s.BM25.load(self.index_path, mmap=True, load_corpus=False)
             if is_zh:
-                self.tokenizer = bm25s.tokenization.Tokenizer(stopwords='zh')
+                self.tokenizer = bm25s.tokenization.Tokenizer(stopwords="zh")
                 self.tokenizer.load_stopwords(self.index_path)
                 self.tokenizer.load_vocab(self.index_path)
             else:
                 stemmer = Stemmer.Stemmer("english")
-                self.tokenizer = bm25s.tokenization.Tokenizer(stopwords='en', stemmer=stemmer)
+                self.tokenizer = bm25s.tokenization.Tokenizer(stopwords="en", stemmer=stemmer)
+                self.tokenizer.load_stopwords(self.index_path)
+                self.tokenizer.load_vocab(self.index_path)
 
             self.searcher.corpus = self.corpus
             self.searcher.backend = "numba"
@@ -270,6 +279,9 @@ class BM25Retriever(BaseTextRetriever):
         if num is None:
             num = self.topk
         if self.backend == "pyserini":
+            is_zh = judge_zh(query)
+            if is_zh:
+                self.searcher.set_language("zh")
             hits = self.searcher.search(query, num)
             if len(hits) < 1:
                 if return_score:
@@ -287,16 +299,20 @@ class BM25Retriever(BaseTextRetriever):
                 all_contents = [json.loads(self.searcher.doc(hit.docid).raw())["contents"] for hit in hits]
                 results = [
                     {
+                        "id": hit.docid, 
                         "title": content.split("\n")[0].strip('"'),
                         "text": "\n".join(content.split("\n")[1:]),
                         "contents": content,
                     }
-                    for content in all_contents
+                    for content, hit in zip(all_contents, hits)
                 ]
             else:
                 results = load_docs(self.corpus, [hit.docid for hit in hits])
         elif self.backend == "bm25s":
-            query_tokens = self.tokenizer.tokenize([query], return_as='tuple', update_vocab=False)
+            import bm25s
+
+            # query_tokens = self.tokenizer.tokenize([query], return_as="tuple", update_vocab=False)
+            query_tokens = bm25s.tokenize([query])
             results, scores = self.searcher.retrieve(query_tokens, k=num)
             results = list(results[0])
             scores = list(scores[0])
@@ -318,11 +334,15 @@ class BM25Retriever(BaseTextRetriever):
                 results.append(item_result)
                 scores.append(item_score)
         elif self.backend == "bm25s":
-            query_tokens = self.tokenizer.tokenize(query, return_as='tuple', update_vocab=False)
+            import bm25s
+
+            # query_tokens = self.tokenizer.tokenize(query, return_as="tuple", update_vocab=False)
+            query_tokens = bm25s.tokenize(query)
             results, scores = self.searcher.retrieve(query_tokens, k=num)
         else:
             assert False, "Invalid bm25 backend!"
-
+        results = results.tolist() if isinstance(results, np.ndarray) else results
+        scores = scores.tolist() if isinstance(scores, np.ndarray) else scores
         if return_score:
             return results, scores
         else:
@@ -334,17 +354,17 @@ class DenseRetriever(BaseTextRetriever):
 
     def __init__(self, config: dict, corpus=None):
         super().__init__(config)
-        
+
         self.load_corpus(corpus)
         self.load_index()
         self.load_model()
-    
+
     def load_corpus(self, corpus):
         if corpus is None:
             self.corpus = load_corpus(self.corpus_path)
         else:
             self.corpus = corpus
-    
+
     def load_index(self):
         if self.index_path is None or not os.path.exists(self.index_path):
             raise Warning(f"Index file {self.index_path} does not exist!")
@@ -355,35 +375,61 @@ class DenseRetriever(BaseTextRetriever):
             co.shard = True
             self.index = faiss.index_cpu_to_all_gpus(self.index, co=co)
 
-    
     def update_additional_setting(self):
         self.query_max_length = self._config["retrieval_query_max_length"]
-        self.pooling_method = self._config['retrieval_pooling_method']
-        self.use_fp16 = self._config['retrieval_use_fp16']
+        self.pooling_method = self._config["retrieval_pooling_method"]
+        self.use_fp16 = self._config["retrieval_use_fp16"]
         self.batch_size = self._config["retrieval_batch_size"]
         self.instruction = self._config["instruction"]
 
-        self.retreival_model_path = self._config['retrieval_model_path']
+        self.retrieval_model_path = self._config["retrieval_model_path"]
         self.use_st = self._config["use_sentence_transformer"]
-        self.use_faiss_gpu = self._config['faiss_gpu']
+        self.use_faiss_gpu = self._config["faiss_gpu"]
 
     def load_model(self):
         if self.use_st:
             self.encoder = STEncoder(
-                model_name = self.retrieval_method,
-                model_path = self._config["retrieval_model_path"],
-                max_length = self.query_max_length,
-                use_fp16 = self.use_fp16,
-                instruction = self.instruction,
+                model_name=self.retrieval_method,
+                model_path=self._config["retrieval_model_path"],
+                max_length=self.query_max_length,
+                use_fp16=self.use_fp16,
+                instruction=self.instruction,
+                silent=self.silent,
             )
         else:
+            # check pooling method
+            self._check_pooling_method(self.retrieval_model_path, self.pooling_method)
             self.encoder = Encoder(
-                model_name = self.retrieval_method,
-                model_path = self.retreival_model_path,
-                pooling_method = self.pooling_method,
-                max_length = self.query_max_length,
-                use_fp16 = self.use_fp16,
-                instruction = self.instruction,
+                model_name=self.retrieval_method,
+                model_path=self.retrieval_model_path,
+                pooling_method=self.pooling_method,
+                max_length=self.query_max_length,
+                use_fp16=self.use_fp16,
+                instruction=self.instruction,
+            )
+
+    def _check_pooling_method(self, model_path, pooling_method):
+        try:
+            # read pooling method from 1_Pooling/config.json
+            pooling_config = json.load(open(os.path.join(model_path, "1_Pooling/config.json")))
+            for k, v in pooling_config.items():
+                if k.startswith("pooling_mode") and v == True:
+                    detect_pooling_method = k.split("pooling_mode_")[-1]
+                    if detect_pooling_method == "mean_tokens":
+                        detect_pooling_method = "mean"
+                    elif detect_pooling_method == "cls_token":
+                        detect_pooling_method = "cls"
+                    else:
+                        # raise warning: not implemented pooling method
+                        warnings.warn(f"Pooling method {detect_pooling_method} is not implemented.", UserWarning)
+                        detect_pooling_method = "mean"
+                    break
+        except:
+            detect_pooling_method = None
+
+        if detect_pooling_method is not None and detect_pooling_method != pooling_method:
+            warnings.warn(
+                f"Pooling method in model config file is {detect_pooling_method}, but the input is {pooling_method}. Please check carefully."
             )
 
     def _search(self, query: str, num: int = None, return_score=False):
@@ -410,15 +456,12 @@ class DenseRetriever(BaseTextRetriever):
 
         results = []
         scores = []
-
         emb = self.encoder.encode(query, batch_size=batch_size, is_query=True)
-        print("Begin faiss searching...")
         scores, idxs = self.index.search(emb, k=num)
-        print("End faiss searching")
         scores = scores.tolist()
         idxs = idxs.tolist()
 
-        flat_idxs = sum(idxs, [])
+        flat_idxs = [idx for sublist in idxs for idx in sublist]
         results = load_docs(self.corpus, flat_idxs)
         results = [results[i * num : (i + 1) * num] for i in range(len(idxs))]
 
@@ -454,8 +497,7 @@ class MultiModalRetriever(BaseRetriever):
         self.batch_size = config["retrieval_batch_size"]
 
         self.encoder = ClipEncoder(
-            model_name=self.retrieval_method,
-            model_path=config["retrieval_model_path"],
+            model_name=self.retrieval_method, model_path=config["retrieval_model_path"], silent=self.silent
         )
 
     def _judge_input_modal(self, query):
@@ -477,10 +519,12 @@ class MultiModalRetriever(BaseRetriever):
         )
         if query_modal == "image" and isinstance(query, str):
             from PIL import Image
+
             if os.path.exists(query):
                 query = Image.open(query)
             else:
                 import requests
+
                 query = Image.open(requests.get(query, stream=True).raw)
 
         query_emb = self.encoder.encode(query, modal=query_modal)
@@ -508,6 +552,7 @@ class MultiModalRetriever(BaseRetriever):
         if query_modal == "image" and isinstance(query[0], str):
             from PIL import Image
             import requests
+
             if os.path.exists(query[0]):
                 query = [Image.open(q) for q in query]
             else:
@@ -516,7 +561,7 @@ class MultiModalRetriever(BaseRetriever):
         results = []
         scores = []
 
-        for start_idx in tqdm(range(0, len(query), batch_size), desc="Retrieval process: "):
+        for start_idx in tqdm(range(0, len(query), batch_size), desc="Retrieval process: ", disable=self.silent):
             query_batch = query[start_idx : start_idx + batch_size]
             batch_emb = self.encoder.encode(query_batch, modal=query_modal)
             batch_scores, batch_idxs = self.index_dict[target_modal].search(batch_emb, k=num)
@@ -524,7 +569,7 @@ class MultiModalRetriever(BaseRetriever):
             batch_scores = batch_scores.tolist()
             batch_idxs = batch_idxs.tolist()
 
-            flat_idxs = sum(batch_idxs, [])
+            flat_idxs = flat_idxs = [idx for sublist in batch_idxs for idx in sublist]
             batch_results = load_docs(self.corpus, flat_idxs)
             batch_results = [batch_results[i * num : (i + 1) * num] for i in range(len(batch_idxs))]
 
@@ -544,10 +589,10 @@ class MultiRetrieverRouter:
         self.retriever_list = self.load_all_retriever(config)
         self.config = config
 
-        if self.merge_method == 'rerank':
-            config['multi_retriever_setting']['rerank_topk'] = self.final_topk
-            config['multi_retriever_setting']['device'] = config['device']
-            self.reranker = get_reranker(config['multi_retriever_setting'])
+        if self.merge_method == "rerank":
+            config["multi_retriever_setting"]["rerank_topk"] = self.final_topk
+            config["multi_retriever_setting"]["device"] = config["device"]
+            self.reranker = get_reranker(config["multi_retriever_setting"])
 
     def load_all_retriever(self, config):
         retriever_config_list = config["multi_retriever_setting"]["retriever_list"]
@@ -583,7 +628,7 @@ class MultiRetrieverRouter:
                 try:
                     model_config = AutoConfig.from_pretrained(retrieval_model_path)
                     arch = model_config.architectures[0]
-                    print("arch: ",arch)
+                    print("arch: ", arch)
                     if "clip" in arch.lower():
                         retriever = MultiModalRetriever(retriever_config, corpus)
                     else:
@@ -606,11 +651,11 @@ class MultiRetrieverRouter:
                 for _item in item:
                     _item["source"] = retrieval_method
                     _item["corpus_path"] = corpus_path
-                    _item['is_multimodal'] = is_multimodal
+                    _item["is_multimodal"] = is_multimodal
             else:
                 item["source"] = retrieval_method
                 item["corpus_path"] = corpus_path
-                item['is_multimodal'] = is_multimodal
+                item["is_multimodal"] = is_multimodal
         return result
 
     def _search_or_batch_search(self, query: Union[str, list], target_modal, num, return_score, method, retriever_list):
@@ -623,7 +668,7 @@ class MultiRetrieverRouter:
         def process_retriever(retriever):
             is_multimodal = isinstance(retriever, MultiModalRetriever)
             params = {"query": query, "return_score": return_score}
-            
+
             if is_multimodal:
                 params["target_modal"] = target_modal
 
@@ -642,7 +687,9 @@ class MultiRetrieverRouter:
             return result, score
 
         with ThreadPoolExecutor(max_workers=4) as executor:
-            future_to_retriever = {executor.submit(process_retriever, retriever): retriever for retriever in retriever_list}
+            future_to_retriever = {
+                executor.submit(process_retriever, retriever): retriever for retriever in retriever_list
+            }
             for future in as_completed(future_to_retriever):
                 try:
                     result, score = future.result()
@@ -658,7 +705,6 @@ class MultiRetrieverRouter:
         else:
             return result_list
 
-
     def reorder(self, result_list, score_list, retriever_list):
         """
         batch_search:
@@ -667,7 +713,7 @@ class MultiRetrieverRouter:
 
         navie search:
         original result like: [bm25-d1, bm25-d2, e5-d1, e5-d2]
-        
+
         """
 
         retriever_num = len(retriever_list)
@@ -702,8 +748,8 @@ class MultiRetrieverRouter:
                 for query_idx, query_doc_list in enumerate(result_list):
                     exist_id = set()
                     for doc_idx, doc in enumerate(query_doc_list):
-                        if doc['id'] not in exist_id:
-                            exist_id.add(doc['id'])
+                        if doc["id"] not in exist_id:
+                            exist_id.add(doc["id"])
                         else:
                             query_doc_list.remove(doc)
                             if score_list != []:
@@ -723,14 +769,14 @@ class MultiRetrieverRouter:
             else:
                 result_list, score_list = self.rrf_merge(result_list, num, k=60)
             return result_list, score_list
-        elif self.merge_method == 'rerank':
+        elif self.merge_method == "rerank":
             if isinstance(result_list[0], dict):
                 query, result_list, score_list = [query], [result_list], [score_list]
             # parse the result of multimodal corpus
             for item_result in result_list:
                 for item in item_result:
-                    if item['is_multimodal']:
-                        item['contents'] = item['text']
+                    if item["is_multimodal"]:
+                        item["contents"] = item["text"]
             # rerank all docs
             print(result_list)
             result_list, score_list = self.reranker.rerank(query, result_list, topk=num)
@@ -790,50 +836,75 @@ class MultiRetrieverRouter:
         # query: str or PIL.Image
         # judge query type: text or image
         if judge_image(query):
-            retriever_list = [retriever for retriever in self.retriever_list if isinstance(retriever, MultiModalRetriever)]
+            retriever_list = [
+                retriever for retriever in self.retriever_list if isinstance(retriever, MultiModalRetriever)
+            ]
         else:
             retriever_list = self.retriever_list
-        if target_modal == 'image':
+        if target_modal == "image":
             # remove text retriever
             retriever_list = [retriever for retriever in retriever_list if isinstance(retriever, MultiModalRetriever)]
 
-        return self._search_or_batch_search(query, target_modal, num, return_score, method="search", retriever_list=retriever_list)
+        return self._search_or_batch_search(
+            query, target_modal, num, return_score, method="search", retriever_list=retriever_list
+        )
 
     def batch_search(self, query, target_modal="text", num: Union[list, int, None] = None, return_score=False):
         # judge query type: text or image
         if not isinstance(query, list):
             query = [query]
-        if target_modal == 'image':
-            self._retriever_list = [retriever for retriever in self.retriever_list if isinstance(retriever, MultiModalRetriever)]
+        if target_modal == "image":
+            self._retriever_list = [
+                retriever for retriever in self.retriever_list if isinstance(retriever, MultiModalRetriever)
+            ]
         else:
             self._retriever_list = self.retriever_list
         query_type_list = [judge_image(q) for q in query]
         if all(query_type_list):
             # all query is image
-            if self.merge_method == 'rerank':
-                warnings.warn('merge_method is rerank, but all query is image, use default method `concat` instead')
-                self.merge_method = 'concat'
-            retriever_list = [retriever for retriever in self._retriever_list if isinstance(retriever, MultiModalRetriever)]
+            if self.merge_method == "rerank":
+                warnings.warn("merge_method is rerank, but all query is image, use default method `concat` instead")
+                self.merge_method = "concat"
+            retriever_list = [
+                retriever for retriever in self._retriever_list if isinstance(retriever, MultiModalRetriever)
+            ]
 
-            return self._search_or_batch_search(query, target_modal, num, return_score, method="batch_search", retriever_list=retriever_list)
+            return self._search_or_batch_search(
+                query, target_modal, num, return_score, method="batch_search", retriever_list=retriever_list
+            )
         elif all([not t for t in query_type_list]):
             # all query is text
             # if exist text retriever, don't use mm retriever for text-text search
             if any([isinstance(retriever, BaseTextRetriever) for retriever in self._retriever_list]):
-                self._retriever_list = [retriever for retriever in self._retriever_list if not isinstance(retriever, MultiModalRetriever)]
-            return self._search_or_batch_search(query, target_modal, num, return_score, method="batch_search", retriever_list=self._retriever_list)
+                self._retriever_list = [
+                    retriever for retriever in self._retriever_list if not isinstance(retriever, MultiModalRetriever)
+                ]
+            return self._search_or_batch_search(
+                query, target_modal, num, return_score, method="batch_search", retriever_list=self._retriever_list
+            )
         else:
             # query list is the mix of image and text
-            if self.merge_method == 'rerank':
-                warnings.warn('merge_method is rerank, but some query is image, use default method `concat` instead')
-                self.merge_method = 'concat'
+            if self.merge_method == "rerank":
+                warnings.warn("merge_method is rerank, but some query is image, use default method `concat` instead")
+                self.merge_method = "concat"
             image_query_idx = [i for i, t in enumerate(query_type_list) if t]
             image_query_list = [query[i] for i in image_query_idx]
             text_query_list = [q for q in query if q not in image_query_list]
 
-            text_output = self._search_or_batch_search(text_query_list, target_modal, num, return_score, method="batch_search", retriever_list=self._retriever_list)
-            retriever_list = [retriever for retriever in self._retriever_list if isinstance(retriever, MultiModalRetriever)]
-            image_output = self._search_or_batch_search(text_query_list, target_modal, num, return_score, method="batch_search", retriever_list=retriever_list)
+            text_output = self._search_or_batch_search(
+                text_query_list,
+                target_modal,
+                num,
+                return_score,
+                method="batch_search",
+                retriever_list=self._retriever_list,
+            )
+            retriever_list = [
+                retriever for retriever in self._retriever_list if isinstance(retriever, MultiModalRetriever)
+            ]
+            image_output = self._search_or_batch_search(
+                text_query_list, target_modal, num, return_score, method="batch_search", retriever_list=retriever_list
+            )
 
             # merge text output and image output
             if return_score:
@@ -851,7 +922,7 @@ class MultiRetrieverRouter:
                     else:
                         final_result.append(image_result[image_idx])
                         final_score.append(image_score[image_idx])
-                        image_idx += 1 
+                        image_idx += 1
                 return final_result, final_score
             else:
                 final_result = []
@@ -863,6 +934,357 @@ class MultiRetrieverRouter:
                         text_idx += 1
                     else:
                         final_result.append(image_result[image_idx])
-                        image_idx += 1 
+                        image_idx += 1
                 return final_result
 
+
+class SparseRetriever(BaseTextRetriever):
+    """Sparse embedding retriever supporting only SPLADE with Seismic backend for now."""
+
+    def __init__(self, config):
+        super().__init__(config)
+
+        import multiprocessing
+        self.cores = str(multiprocessing.cpu_count())
+        os.environ["RAYON_NUM_THREADS"] = self.cores
+
+        self.progress_bar = None
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.corpus = load_corpus(config["corpus_path"])
+        self.tokenizer, self.model = self._load_sparse_model()
+
+        self.id = 0
+
+        self.update_additional_setting()
+
+        self.seismic_query_cut = self.config["seismic_query_cut"]
+        self.seismic_heap_factor = self.config["seismic_heap_factor"]
+        self.index_max_tokens = self.config["seismic_max_tokens_length"]
+        self._init_seismic_index()
+
+    def update_additional_setting(self):
+        """Load config shared for all the models supported"""
+        self.query_max_length = self._config["retrieval_query_max_length"]
+        self.use_fp16 = self._config["retrieval_use_fp16"]
+        self.batch_size = self._config["retrieval_batch_size"]
+        self.retrieval_model_path = self._config["retrieval_model_path"]
+        self.pooling_method = self._config["retrieval_pooling_method"]
+
+    def _init_seismic_index(self):
+        """Initialize Seismic index."""
+        from seismic import SeismicIndex  # Assuming this is available
+        self.seismic_index = SeismicIndex.load(self.index_path)
+        self.string_type = f'U{self.index_max_tokens}'  # For Seismic string dtype
+
+    def _load_sparse_model(self):
+        """Load tokenizer and model based on sparse type."""
+        from transformers import AutoModelForMaskedLM, AutoTokenizer
+        # Load model
+        tokenizer = AutoTokenizer.from_pretrained(self.retrieval_model_path)
+        model = AutoModelForMaskedLM.from_pretrained(self.retrieval_model_path)
+
+        if self.use_fp16:
+            model = model.half()
+
+        # Use more gpus if available
+        if torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model, device_ids=self.config['gpu_id'].split(','))
+
+        model = model.to(self.device)
+        model.eval()
+        return tokenizer, model
+
+    def _encode(self, query):
+        inputs = self.tokenizer(
+            query,
+            return_tensors="pt",
+            truncation=True,
+            padding=True,
+            max_length=self.query_max_length,
+            add_special_tokens=True
+        ).to(self.model.device)
+
+        with torch.no_grad():
+            logits = self.model(**inputs).logits  # [batch_size, seq_len, vocab_size]
+            attention_mask = inputs["attention_mask"].unsqueeze(-1)  # [batch, seq_len, 1]
+
+            scores = torch.log1p(torch.relu(logits)) * attention_mask
+            v_repr = torch.max(scores, dim=1)[0]  # [batch_size, vocab_size]
+
+            # Move to CPU (it seems much faster)
+            v_repr = v_repr.cpu()
+            nonzero_mask = v_repr > 1e-4
+
+            # Get sparse values and indices in batch
+            batch_indices, token_indices = torch.nonzero(nonzero_mask, as_tuple=True)
+            token_scores = v_repr[batch_indices, token_indices]
+
+            # Convert once all token IDs to strings (batched)
+            unique_token_ids = torch.unique(token_indices)
+            token_id_to_token = {
+                idx.item(): tok for idx, tok in zip(
+                    unique_token_ids, self.tokenizer.convert_ids_to_tokens(unique_token_ids.tolist())
+                )
+            }
+
+            # Build final embeddings
+            from collections import defaultdict
+            embeddings = defaultdict(dict)
+            for b_idx, t_idx, score in zip(batch_indices, token_indices, token_scores):
+                embeddings[b_idx.item()][token_id_to_token[t_idx.item()]] = round(score.item(), 4)
+
+            # Convert to list for each document
+            return [embeddings[i] for i in range(len(query))]
+
+    def search(self, query: list, num: int = None, return_score=False) -> (List[Dict], List[float]):
+        """Search using sparse vector."""
+        num = num or self.topk
+
+        query_vec = self._encode(query)
+        results, scores = self._seismic_search(query_vec, num)
+
+        if return_score:
+            return results, scores
+        else:
+            return results
+
+    def batch_search(self, query, num=None, return_score=False):
+        """Search using sparse vector."""
+        if isinstance(query, str):
+            query = [query]
+
+        if self.pooling_method != 'max':
+            print(
+                f'Pooling method: {self.pooling_method.upper()} not supported on sparse neural retrieval models. fallback to: MAX.')
+
+        num = num or self.topk
+
+        embeddings = []
+        batch = []
+        
+        # Encode
+        for i in range(len(query)):
+            # Process batch
+            batch.append(query[i])
+            if len(batch) >= self.batch_size:
+                query_vec = self._encode(batch)
+                embeddings.extend(query_vec)
+                batch = []
+
+        if batch:
+            query_vec = self._encode(batch)
+            embeddings.extend(query_vec)
+
+        # Search
+        search_results = self._seismic_batch_search(embeddings, num)
+
+        results = []
+        scores = []
+        for result in sorted(search_results, key=lambda e: int(e[0][0])):
+            tmp_results = []
+            tmp_scores = []
+
+            for query_id, score, doc_id in result:
+                tmp_results.append(self.corpus[int(doc_id)])
+                tmp_scores.append(score)
+
+            results.append(tmp_results)
+            scores.append(tmp_scores)
+        
+        if return_score:
+            return results, scores
+        else:
+            return results
+
+    def _seismic_search(self, query_vec: List[Dict[str, float]], k: int) -> (List[Dict], List[float]):
+        """Search using Seismic backend."""
+        # Convert query to Seismic format
+        results, scores = self.index_search(k, query_vec)
+        return results[0], scores[0]
+
+    def _seismic_batch_search(self, query_vecs: List[Dict[str, float]], k: int) -> (
+            List[List[Dict]], List[List[float]]):
+        """Batch search using Seismic backend (one query at a time)."""
+        return self.index_search(k, query_vecs)
+
+    def index_search(self, k, query_vec):
+        max_len = max(len(query) for query in query_vec)
+        pad_token = ""  # or whatever default is appropriate
+
+        query_components = []
+        query_values = []
+        ids = []
+
+        for query in query_vec:
+            keys = list(query.keys())
+            values = list(query.values())
+
+            # Pad to max_len
+            padded_keys = keys + [pad_token] * (max_len - len(keys))
+            padded_values = values + [0.0] * (max_len - len(values))
+
+            query_components.append(np.array(padded_keys, dtype='U30'))
+            query_values.append(np.array(padded_values, dtype=np.float32))
+            ids.append(self.id)
+            self.id += 1
+
+        ids = np.array(ids, dtype='U30')
+        # Execute search
+        search_results = self.seismic_index.batch_search(
+            queries_ids=ids,  # Placeholder ID
+            query_components=query_components,
+            query_values=query_values,
+            query_cut=self.seismic_query_cut,
+            heap_factor=self.seismic_heap_factor,
+            k=k,
+            sorted=True,  # specified even if default value
+            num_threads=int(self.cores)
+        )
+        return search_results
+
+class SerperRetriever(BaseRetriever):
+    """Retriever based on Google Serper API for web search."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        
+        # Serper API specific configuration
+        self.api_key = config["serper_api_key"]
+        if not self.api_key:
+            raise ValueError("serper_api_key is required in config")
+        
+        self.api_url = "https://google.serper.dev/search"
+        self.search_type = config["serper_search_type"] if config["serper_search_type"] else "search"  # search, news, images, etc.
+        self.location = config["serper_location"] if config["serper_location"] else None  # e.g., "United States"
+        self.gl = config["serper_gl"] if config["serper_gl"] else None  # Country code, e.g., "us"
+        self.hl = config["serper_hl"] if config["serper_hl"] else "en"  # Language, e.g., "en"
+        
+    def _search(self, query: str, num: int) -> List[Dict[str, str]]:
+        """
+        Retrieve top-k relevant documents using Google Serper API.
+        
+        Args:
+            query: Search query string
+            num: Number of results to return
+            return_score: Whether to return relevance scores
+            
+        Returns:
+            List of dictionaries containing search results with keys:
+                - contents: The snippet/description
+                - title: Page title
+                - text: Full text (same as contents for web search)
+                - url: Page URL
+                - score: Relevance score (if return_score=True)
+        """
+        headers = {
+            'X-API-KEY': self.api_key,
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'q': query,
+            'num': num,
+            'hl': self.hl
+        }
+        
+        if self.location:
+            payload['location'] = self.location
+        if self.gl:
+            payload['gl'] = self.gl
+        
+        try:
+            response = requests.post(
+                self.api_url,
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            results = []
+            
+            # Parse organic results
+            organic_results = data.get('organic', [])
+            for idx, item in enumerate(organic_results[:num]):
+                result = {
+                    'title': item.get('title', ''),
+                    'text': item.get('snippet', ''),
+                    'url': item.get('link', ''),
+                }
+                
+                results.append(result)
+            
+            return results
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error calling Serper API: {e}")
+            return []
+        except Exception as e:
+            print(f"Unexpected error in _search: {e}")
+            return []
+    
+    def search(self, query: str, num: int = None) -> List[Dict[str, str]]:
+        """
+        Single search wrapper for SerperRetriever.
+        """
+        if num is None:
+            num = self.topk
+        return self._search(query, num)
+    
+    def _batch_search(self, query_list: List[str], num: int) -> List[List[Dict[str, str]]]:
+        """
+        Batch search for multiple queries.
+        
+        Args:
+            query_list: List of query strings
+            num: Number of results per query
+            return_score: Whether to return relevance scores
+            
+        Returns:
+            List of result lists, one for each query
+        """
+        results = []
+        if num is None:
+            num = self.topk
+        
+        for query in query_list:
+            result = self._search(query, num)
+            results.append(result)
+            # Add a small delay to avoid rate limiting
+            time.sleep(0.1)
+        
+        return results
+
+    def batch_search(self, query_list: List[str], num: int = None):
+        return self._batch_search(query_list, num)
+
+def main():
+# Example configuration
+    config = {
+        # Base retriever config
+        "retrieval_method": "serper",
+        "retrieval_topk": 10,
+        "index_path": None,  # Not used for Serper
+        "corpus_path": None,  # Not used for Serper
+        "save_dir": "./output",
+        
+        # Serper specific config
+        "serper_api_key": "your-api-key",
+        "serper_search_type": "search",
+        "serper_location": "United States",
+        "serper_gl": "us",
+        "serper_hl": "en"
+    }
+    from flashrag.config import Config
+    config = Config("basic_config.yaml",config)
+    retriever = SerperRetriever(config)
+
+    # Batch search
+    queries = ["Python programming", "Machine learning"]
+    batch_results = retriever.batch_search(queries)
+    print(batch_results)
+
+if __name__ == "__main__":
+    main()
